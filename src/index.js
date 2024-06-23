@@ -59,10 +59,9 @@ async function startClient() {
   log("running@", config.get("name"));
 
   await client.start({
-    phoneNumber: async () => await getInput("Please enter your number: "),
-    password: async () => await getInput("Please enter your password: "),
-    phoneCode: async () =>
-      await getInput("Please enter the code you received: "),
+    phoneNumber: () => getInput("Please enter your number: "),
+    password: () => getInput("Please enter your password: "),
+    phoneCode: () => getInput("Please enter the code you received: "),
     onError: (err) => log(err),
   });
 
