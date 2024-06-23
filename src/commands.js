@@ -24,15 +24,19 @@ class ProgressBar {
     return this;
   }
 
+  async updateMessage() {
+    await global.telClient.editMessage(this.info.sender, {
+      message: this.tempMessageID,
+      text: this._text,
+      parse_mode: "MarkdownV2",
+    });
+  }
+
   async download(chunk, total) {
     if (this.canCall) {
       log("Downloading...");
       this.canCall = false;
-      await global.telClient.editMessage(this.info.sender, {
-        message: this.tempMessageID,
-        text: this._text,
-        parse_mode: "MarkdownV2",
-      });
+      await this.updateMessage();
     } else {
       log(`Remain: ${this.remain(chunk, total)}%`);
     }
@@ -42,11 +46,7 @@ class ProgressBar {
     if (this.canCall) {
       log("Uploading...");
       this.canCall = false;
-      await global.telClient.editMessage(this.info.sender, {
-        message: this.tempMessageID,
-        text: this._text,
-        parse_mode: "MarkdownV2",
-      });
+      await this.updateMessage();
     } else {
       log(`Progress: ${(chunk * 100).toFixed(2)}%`);
     }
@@ -100,8 +100,7 @@ class History {
 
 function genHelp() {
   let text = "";
-  const structure =
-    "🔹`%s`\n**description:** __%s__\n**args:** `%s`\n**usage:** `%s`\n〰️〰️〰️\n";
+  const structure = "🔹`%s`\n**description:** __%s__\n**args:** `%s`\n**usage:** `%s`\n〰️〰️〰️\n";
   for (let cmd of config.get("commands")) {
     text += util.format(
       structure,
@@ -111,7 +110,6 @@ function genHelp() {
       cmd.usage
     );
   }
-
   return text;
 }
 
@@ -130,10 +128,7 @@ function parseLink(link) {
   if (!isNaN(target)) {
     target = "-100" + target;
   }
-  return {
-    target,
-    mid,
-  };
+  return { target, mid };
 }
 
 async function checkMessageID(info, fromID, toID) {
@@ -155,12 +150,7 @@ async function checkMessageID(info, fromID, toID) {
     randomIdList = Array.from(Array(arrSize), (_) => genRandomId());
   }
 
-  return {
-    isValid,
-    arrSize,
-    idList,
-    randomIdList,
-  };
+  return { isValid, arrSize, idList, randomIdList };
 }
 
 async function helpCommand(info) {
@@ -180,63 +170,71 @@ async function idCommand(info) {
   });
 }
 
+async function handleMedia(info, msg, postText, tempMSG) {
+  const progressBar = new ProgressBar(info);
+  progressBar.tempMessageID = tempMSG;
+
+  const file = await downloadMedia(info, msg, progressBar);
+  await uploadMedia(info, file, postText, progressBar);
+
+  await global.telClient.deleteMessages(info.sender, [tempMSG], {
+    revoke: true,
+  });
+  fs.unlink(file, (err) => {
+    if (err) {
+      DEBUG("there is error while deleting:", file);
+      console.error(err);
+      return;
+    }
+    DEBUG(`${file} is deleted.`);
+  });
+}
+
+async function downloadMedia(info, msg, progressBar) {
+  progressBar.setText("Downloading...");
+  const file = await global.telClient.downloadMedia(msg.media, {
+    workers: config.get("workers"),
+    progressCallback: progressBar.download.bind(progressBar),
+    outputFile: config.get("downloads"),
+  });
+  DEBUG("downloaded file:", file);
+  await progressBar.setText("Download Completed!!").download();
+  return file;
+}
+
+async function uploadMedia(info, file, postText, progressBar) {
+  progressBar.setText("Uploading...");
+  await global.telClient.sendFile(info.sender, {
+    file,
+    caption: postText,
+    workers: config.get("workers"),
+    forceDocument: info.args[2] ? true : false,
+    voiceNote: false,
+    videoNote: false,
+    progressCallback: progressBar.upload.bind(progressBar),
+  });
+  await progressBar.setText("Upload Completed!!").upload();
+}
+
 async function ssaveCommand(info) {
   const { target: peer, mid: fromId } = parseLink(info.args[0]);
   const { mid: toId } = parseLink(info.args[1]);
   const checkID = await checkMessageID(info, fromId, toId);
   if (!checkID.isValid) return;
   const { idList } = checkID;
-  const result = await global.telClient.getMessages(peer, {
-    ids: idList,
-  });
-  let postText, media, progressBar, file, tempMSG;
+  const result = await global.telClient.getMessages(peer, { ids: idList });
+
   for (const msg of result) {
-    DEBUG("msg:", msg);
     if (!msg) continue;
-    postText = msg.message;
-    media = msg.media;
+    const postText = msg.message;
+    const media = msg.media;
     if (media) {
-      tempMSG = await global.telClient
-        .sendMessage(info.sender, {
-          message: "wait...",
-        })
+      const tempMSG = await global.telClient
+        .sendMessage(info.sender, { message: "wait..." })
         .then((e) => e.id);
-      progressBar = new ProgressBar(info);
-      progressBar.tempMessageID = tempMSG;
-      progressBar.setText("Downloading...");
-      file = await global.telClient.downloadMedia(media, {
-        workers: config.get("workers"),
-        progressCallback: progressBar.download.bind(progressBar),
-        outputFile: config.get("downloads"),
-      });
-      DEBUG("downloaded file:", file);
-      await progressBar.setText("Download Completed!!").download();
-      progressBar.setText("Uploading...");
-      await global.telClient.sendFile(info.sender, {
-        file,
-        caption: postText,
-        workers: config.get("workers"),
-        forceDocument: info.args[2] ? true : false,
-        voiceNote: false,
-        videoNote: false,
-        progressCallback: progressBar.upload.bind(progressBar),
-      });
-      await progressBar.setText("Upload Completed!!").upload();
-      await global.telClient.deleteMessages(info.sender, [tempMSG], {
-        revoke: true,
-      });
-      fs.unlink(file, (err) => {
-        if (err) {
-          DEBUG("there is error while deleting:", file);
-          console.error(err);
-          return;
-        }
-        DEBUG(`${file} is deleted. `);
-      });
+      await handleMedia(info, msg, postText, tempMSG);
     } else {
-      await global.telClient.sendMessage(info.sender, {
-        message: postText,
-      });
+      await global.telClient.sendMessage(info.sender, { message: postText });
     }
   }
   await global.telClient.sendMessage(info.sender, {
@@ -269,16 +267,10 @@ async function savepCommand(info) {
   let [target, toPeer, count, offset, dropAuthor] = info.args;
   offset ||= 0;
   const history = new History(target, count, offset);
-  let msg,
-    messages = [],
-    ids = [],
-    randomIdList = [];
+  let msg, messages, ids, randomIdList;
   while (!history.isCompleted) {
     messages = await history.getMessages().then((m) => m.messages);
-    for (msg of messages) {
-      ids.push(msg.id);
-    }
-    ids.sort().reverse();
+    ids = messages.map((msg) => msg.id).sort().reverse();
     randomIdList = Array.from(Array(ids.length), (_) => genRandomId());
     await global.telClient.invoke(
       new global.telApi.messages.ForwardMessages({
@@ -297,18 +289,9 @@ async function savepCommand(info) {
 }
 
 async function ssavepCommand(info) {
-  let [target, toPeer, count, offset] = info.args;
-  offset ||= 0;
-  const originSender = info.sender;
-  info.sender = toPeer;
+  const [target, count, offset] = info.args;
   const history = new History(target, count, offset);
-  let postText,
-    media,
-    progressBar,
-    file,
-    tempMSG,
-    messages = [],
-    msg;
+  let postText, media, progressBar, file, tempMSG, messages, msg;
   while (!history.isCompleted) {
     messages = await history.getMessages().then((m) => m.messages);
     for (msg of messages) {
@@ -318,50 +301,15 @@ async function ssavepCommand(info) {
       media = msg.media;
       if (media) {
         tempMSG = await global.telClient
-          .sendMessage(info.sender, {
-            message: "wait...",
-          })
+          .sendMessage(info.sender, { message: "wait..." })
           .then((e) => e.id);
-        progressBar = new ProgressBar(info);
-        progressBar.tempMessageID = tempMSG;
-        progressBar.setText("Downloading...");
-        file = await global.telClient.downloadMedia(media, {
-          workers: config.get("workers"),
-          progressCallback: progressBar.download.bind(progressBar),
-          outputFile: config.get("downloads"),
-        });
-        DEBUG("downloaded file:", file);
-        await progressBar.setText("Download Completed!!").download();
-        progressBar.setText("Uploading...");
-        await global.telClient.sendFile(info.sender, {
-          file,
-          caption: postText,
-          workers: config.get("workers"),
-          forceDocument: info.args[4] ? true : false,
-          voiceNote: false,
-          videoNote: false,
-          progressCallback: progressBar.upload.bind(progressBar),
-        });
-        await progressBar.setText("Upload Completed!!").upload();
-        await global.telClient.deleteMessages(info.sender, [tempMSG], {
-          revoke: true,
-        });
-        fs.unlink(file, (err) => {
-          if (err) {
-            DEBUG("there is error while deleting:", file);
-            console.error(err);
-            return;
-          }
-          DEBUG(`${file} is deleted. `);
-        });
+        await handleMedia(info, msg, postText, tempMSG);
       } else {
-        await global.telClient.sendMessage(info.sender, {
-          message: postText,
-        });
+        await global.telClient.sendMessage(info.sender, { message: postText });
       }
     }
   }
-  await global.telClient.sendMessage(originSender, {
+  await global.telClient.sendMessage(info.sender, {
     message: "✅this message is from cli bot:\n\n forward completed!!",
   });
 }
@@ -380,101 +328,59 @@ async function contactCommand(info) {
 async function downloadCommand(info) {
   const { target: peer, mid } = parseLink(info.args[0]);
   const media = await global.telClient
-    .getMessages(peer, {
-      ids: +mid,
-    })
+    .getMessages(peer, { ids: +mid })
     .then((e) => e[0].media);
   const tempMSG = await global.telClient
-    .sendMessage(info.sender, {
-      message: "wait...",
-    })
+    .sendMessage(info.sender, { message: "wait..." })
     .then((e) => e.id);
   const progressBar = new ProgressBar(info);
   progressBar.tempMessageID = tempMSG;
-  progressBar.setText("Downloading...");
-  const file = await global.telClient.downloadMedia(media, {
-    workers: config.get("workers"),
-    progressCallback: progressBar.download.bind(progressBar),
-    outputFile: config.get("downloads"),
-  });
-  log("downloaded file:", file);
-  await progressBar.setText("Download Completed!!").download();
-  await global.telClient.sendMessage(info.sender, {
-    message: `saved:\n\n\`${file}\``,
-  });
+  const file = await downloadMedia(info, { media }, progressBar);
+  await global.telClient.sendMessage(info.sender, { message: `saved:\n\n\`${file}\`` });
 }
 
 async function uploadCommand(info) {
   const tempMSG = await global.telClient
-    .sendMessage(info.sender, {
-      message: "wait...",
-    })
+    .sendMessage(info.sender, { message: "wait..." })
     .then((e) => e.id);
   const progressBar = new ProgressBar(info);
   progressBar.tempMessageID = tempMSG;
-  progressBar.setText("Uploading...");
-
-  await global.telClient.sendFile(info.sender, {
-    file: info.args[0],
-    workers: config.get("workers"),
-    forceDocument: info.args[1] ? true : false,
-    voiceNote: false,
-    videoNote: false,
-    progressCallback: progressBar.upload.bind(progressBar),
-  });
-  log("uploaded:", info.args[0]);
-  await progressBar.setText("Upload Completed!!").upload();
+  await uploadMedia(info, info.args[0], "", progressBar);
 }
 
 async function joinCommand(info) {
   const result = await global.telClient.invoke(
-    new global.telApi.channels.JoinChannel({
-      channel: info.args[0],
-    })
+    new global.telApi.channels.JoinChannel({ channel: info.args[0] })
   );
 
   DEBUG("join to:", result);
-  await global.telClient.sendMessage(info.sender, {
-    message: "Done!",
-  });
+  await global.telClient.sendMessage(info.sender, { message: "Done!" });
 }
 
 async function joinPrivateCommand(info) {
   const hash = info.args[0].split("+")[1];
   const result = await global.telClient.invoke(
-    new global.telApi.messages.ImportChatInvite({
-      hash,
-    })
+    new global.telApi.messages.ImportChatInvite({ hash })
   );
 
   DEBUG("join to:", result);
-  await global.telClient.sendMessage(info.sender, {
-    message: "Done!",
-  });
+  await global.telClient.sendMessage(info.sender, { message: "Done!" });
 }
 
 async function leftCommand(info) {
   const result = await global.telClient.invoke(
-    new global.telApi.channels.LeaveChannel({
-      channel: info.args[0],
-    })
+    new global.telApi.channels.LeaveChannel({ channel: info.args[0] })
   );
   DEBUG("left from:", result);
-  await global.telClient.sendMessage(info.sender, {
-    message: "Done!",
-  });
+  await global.telClient.sendMessage(info.sender, { message: "Done!" });
 }
 
 async function leftPrivateCommand(info) {
   const result = await global.telClient.invoke(
-    new global.telApi.messages.ExportChatInvite({
-      peer: info.args[0],
-    })
+    new global.telApi.messages.ExportChatInvite({ peer: info.args[0] })
   );
   DEBUG("left from:", result);
-  await global.telClient.sendMessage(info.sender, {
-    message: "Done!",
-  });
+  await global.telClient.sendMessage(info.sender, { message: "Done!" });
 }
 
 export default {
