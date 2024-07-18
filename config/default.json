@@ -1,0 +1,86 @@
+{
+  "name": "Default",
+  "downloads": "downloads",
+  "sessionFileName": "me.session",
+  "workers": 12,
+  "commands": [
+    {
+      "command": "/help",
+      "description": "show this message",
+      "args": "-",
+      "usage": "/help"
+    },
+    {
+      "command": "/ssave",
+      "description": "superSave for Restricted Content",
+      "args": "<postLink1> <postLink2> [<forceDocument: anyValue>]",
+      "usage": "/ssave https://t.me/durov/6 https://t.me/durov/8"
+    },
+    {
+      "command": "/save",
+      "description": "save multiPosts with one comomand(max:100)",
+      "args": "<postLink1> <postLink2> [<toUser>] [<dropAuthor: anyValue>]",
+      "usage": "/save https://t.me/durov/6 https://t.me/durov/8"
+    },
+    {
+      "command": "/id",
+      "description": "get uid from usernames",
+      "args": "<username>",
+      "usage": "/id @test"
+    },
+    {
+      "command": "/contact",
+      "description": "generate fake|real contact",
+      "args": "<phoneNumber> <firstName> [<lastName>] [<vcard>]",
+      "usage": "/contact +11111111111111 test"
+    },
+    {
+      "command": "/download",
+      "description": "download and save post to local",
+      "args": "<postLink>",
+      "usage": "/download https://t.me/durov/6"
+    },
+    {
+      "command": "/upload",
+      "description": "upload from local to telegram",
+      "args": "<path>",
+      "usage": "/upload downloads/test.txt"
+    },
+    {
+      "command": "/join",
+      "description": "join to public channel/groups",
+      "args": "<id>",
+      "usage": "/join @durov"
+    },
+    {
+      "command": "/joinp",
+      "description": "join to private channel/groups",
+      "args": "<link>",
+      "usage": "/joinp <link>"
+    },
+    {
+      "command": "/left",
+      "description": "left from public channel/groups",
+      "args": "<id>",
+      "usage": "/left @durov"
+    },
+    {
+      "command": "/leftp",
+      "description": "left from private channel/groups",
+      "args": "<link>",
+      "usage": "/leftp <link>"
+    },
+    {
+      "command": "/ssavep",
+      "description": "superSave for Restricted Content from users/bots/...",
+      "args": "<target> <toUser> <count> [<offset>] [<forceDocument: anyValue>]",
+      "usage": "/ssavep @test me 50"
+    },
+    {
+      "command": "/savep",
+      "description": "save multiPosts with one comomand from users/bots/...",
+      "args": "<target> <sendTo> <count> [<offset>] [<dropAuthor: anyValue>]",
+      "usage": "/savep @test me 50"
+    }
+  ]
+}

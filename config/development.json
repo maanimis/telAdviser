@@ -1,0 +1,18 @@
+{
+    "name": "Development",
+    "apiId": 24330487,
+    "apiHash": "39927821d2b43902be48f018d03659de",
+    "sudo": [
+      "me",
+      "@BTC_USDT"
+    ],
+    "proxy": {
+      "enable": true,
+      "ip": "127.0.0.1",
+      "port": 2080,
+      "MTProxy": false,
+      "secret": "00000000000000000000000000000000",
+      "socksType": 5,
+      "timeout": 5
+    }
+  }
