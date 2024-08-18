@@ -1,35 +1,36 @@
+
+[فارسی](https://github.com/maanimis/telAdviser/blob/master/README.fa.md)
+
 # telAdviser
-## یه دستیارتلگرام برای راحتی بیشتر :)
+A Telegram Assistant for More Convenience :)
 
-**ویژگی‌ها:**
- - کانال/گروه هایی که محدودیت گذاشتن و فوروارد پستاشونو بستن راحت دور بزنید
- -  پستهای کانال و گروهای پابلیک و پرایوت به هرجایی که خواستید فوروارد کنید تا بکاپ داشته باشید
- -   تایمتونو سر سلکت کردن پست‌ها هدر ندید
- - ...
+### Features:
 
-## نحوه اجرا
+ + Easily bypass restrictions on channels/groups that have blocked posting and forwarding of their posts.
+ + Forward posts from public and private channels and groups to any place you want to keep a backup.
+ + Save time by not having to manually select posts.
+ + ...
 
-[هش و ایدی خودتونو از سایت تلگرام بگیرید](https://my.telegram.org/)
+### How to Run
 
-فایل کانفیگ رو ادیت کنید و دستورات زیر برای اجرا بزنید:
+Get your hash and ID from the Telegram site
 
- 1. [install nodejs](https://nodejs.org/en/download)
- 
- 2. change production config:
- ```
- nano config/production.json
- ```
+Edit the config file and run the following commands:
 
- 3.
- ```
- npm i
- ```
- 4. 
- ```
+
+```
+nano config/production.json
+```
+
+```
+npm i
+```
+
+
+```
 npm start
- ```
+```
 
-الان میتونید از قسمت سیومسیج‌هاتون با زدن دستور/help دستورات و نحوه کار باهاشونو یاد بگیرید 
+Now, you can use the `/help` command in the bot to learn about the available commands and how to use them.
 
-
-![/help command at saved message](images/1.jpg)
+![alt text](images/1.jpg)
